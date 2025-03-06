@@ -5,9 +5,6 @@ const nextConfig = {
       "tailwindui.com",
       "res.cloudinary.com"
     ]
-  },
-  experimental: {
-    serverActions: true
   }
 }
 

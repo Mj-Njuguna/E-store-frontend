@@ -1,6 +1,16 @@
-import { Product } from "@/types";
+"use client";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import Image from "next/image";
+
+// Define the Product interface directly in this file
+interface Product {
+  id: string;
+  name: string;
+  images: { url: string }[];
+  category?: {
+    name: string;
+  };
+}
 
 interface SearchSuggestionsProps {
   suggestions: Product[];
@@ -32,9 +42,11 @@ const SearchSuggestions = ({
               }}
             >
               <div className="w-10 h-10 relative">
-                <img
-                  src={product.images[0]}
+                <Image
+                  src={product.images[0].url}
                   alt={product.name}
+                  fill
+                  sizes="40px"
                   className="object-cover rounded"
                 />
               </div>
@@ -51,7 +63,7 @@ const SearchSuggestions = ({
         </div>
       ) : (
         <div className="p-4 text-center text-gray-500">
-          <p>No products found for "{searchQuery}"</p>
+          <p>No products found for &quot;{searchQuery}&quot;</p>
           <p className="text-sm mt-1">Try searching with different keywords</p>
         </div>
       )}
