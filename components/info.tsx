@@ -4,12 +4,42 @@ import { ShoppingCart } from "lucide-react";
 
 import Currency  from "@/components/ui/currency";
 import Button from "@/components/ui/button";
-import { Product } from "@/types";
 import useCart from "@/hooks/use-cart";
 
 interface InfoProps {
   data: Product
 };
+interface Product {
+  id: string;
+  category: Category;
+  name: string;
+  price: string | number;
+  size: Size;
+  color: Color;
+  images: Image[];
+}
+
+interface Image {
+  id: string;
+  url: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Size {
+  id: string;
+  name: string;
+  value: string;
+}
+
+interface Color {
+  id: string;
+  name: string;
+  value: string;
+}
 
 const Info: React.FC<InfoProps> = ({ data }) => {
   const cart = useCart();
@@ -22,9 +52,9 @@ const Info: React.FC<InfoProps> = ({ data }) => {
     <div>
       <h1 className="text-3xl font-bold text-gray-900">{data.name}</h1>
       <div className="mt-3 flex items-end justify-between">
-        <p className="text-2xl text-gray-900">
-          <Currency value={data?.price} />
-        </p>
+        <div className="text-2xl text-gray-900">
+          <Currency value= {typeof data.price === 'string' ? parseFloat(data.price) : data.price} />
+        </div>
       </div>
       <hr className="my-4" />
       <div className="flex flex-col gap-y-6">
