@@ -9,11 +9,11 @@ export const metadata = {
   description: "Discover our featured products and latest collections",
 };
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 export default async function HomePage() {
   const products = await getProducts({ isFeatured: true });
-  const billboard = await getBillboard("24206006-532c-431c-8d13-87bf581659d3");
+  const billboard = await getBillboard(process.env.NEXT_PUBLIC_BILLBOARD_ID);
 
   return (
     <Container>

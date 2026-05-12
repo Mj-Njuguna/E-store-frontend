@@ -22,15 +22,43 @@ const useCart = create(
         const existingItem = currentItems.find((item) => item.id === data.id);
 
         if (existingItem) {
-          return toast("Item already in cart.");
+          set({
+            items: currentItems.map((item) =>
+              item.id === data.id
+                ? { ...item, quantity: (item.quantity || 1) + 1 }
+                : item
+            ),
+          });
+          return toast.success("Quantity updated.");
         }
 
-        set({ items: [...get().items, data] });
+        set({ items: [...get().items, { ...data, quantity: 1 }] });
         toast.success("Item added to cart.");
       },
       removeItem: (id) => {
         set({ items: [...get().items.filter((item) => item.id !== id)] });
         toast.success("Item removed from cart.");
+      },
+      incrementItem: (id) => {
+        set({
+          items: get().items.map((item) =>
+            item.id === id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
+          ),
+        });
+      },
+      decrementItem: (id) => {
+        const item = get().items.find((i) => i.id === id);
+        if (!item) return;
+        if ((item.quantity || 1) <= 1) {
+          set({ items: get().items.filter((i) => i.id !== id) });
+          toast.success("Item removed from cart.");
+        } else {
+          set({
+            items: get().items.map((i) =>
+              i.id === id ? { ...i, quantity: i.quantity - 1 } : i
+            ),
+          });
+        }
       },
       removeAll: () => set({ items: [] }),
     }),

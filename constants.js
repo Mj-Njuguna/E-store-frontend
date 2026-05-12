@@ -1,4 +1,30 @@
-export const lists = [
+export const filters = [
+  {
+    id: 'color',
+    name: 'Color',
+    options: [
+      { value: 'white', label: 'White' },
+      { value: 'beige', label: 'Beige' },
+      { value: 'blue', label: 'Blue' },
+      { value: 'brown', label: 'Brown' },
+      { value: 'green', label: 'Green' },
+      { value: 'purple', label: 'Purple' },
+    ],
+  },
+  {
+    id: 'sizes',
+    name: 'Sizes',
+    options: [
+      { value: 'xs', label: 'XS' },
+      { value: 's', label: 'S' },
+      { value: 'm', label: 'M' },
+      { value: 'l', label: 'L' },
+      { value: 'xl', label: 'XL' },
+      { value: '2xl', label: '2XL' },
+    ],
+  },
+]
+
   {
     title: 'Best Selling',
     items: [

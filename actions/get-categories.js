@@ -12,7 +12,8 @@ const getCategories = async () => {
       return [];
     }
 
-    return res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Error fetching categories:', error);
     return [];

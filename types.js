@@ -36,9 +36,9 @@ export const ProductPropType = PropTypes.shape({
   id: PropTypes.string.isRequired,
   category: CategoryPropType.isRequired,
   name: PropTypes.string.isRequired,
-  price: PropTypes.string.isRequired,
-  isFeatured: PropTypes.bool.isRequired,
-  size: SizePropType.isRequired,
-  color: ColorPropType.isRequired,
-  images: PropTypes.arrayOf(ImagePropType).isRequired
+  price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  isFeatured: PropTypes.bool,
+  size: PropTypes.oneOfType([SizePropType, PropTypes.object]),
+  color: PropTypes.oneOfType([ColorPropType, PropTypes.object]),
+  images: PropTypes.arrayOf(ImagePropType)
 });

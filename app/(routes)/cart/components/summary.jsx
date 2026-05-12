@@ -4,7 +4,7 @@ import axios from "axios";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { SignInButton } from "@clerk/nextjs";
+import { useAuth, SignInButton } from "@clerk/nextjs";
 import Currency from "@/components/ui/currency";
 import Button from "@/components/ui/button";
 import useCart from "@/hooks/use-cart";
@@ -16,8 +16,7 @@ const Summary = () => {
   const searchParams = useSearchParams();
   const items = useCart((state) => state.items);
   const removeAll = useCart((state) => state.removeAll);
-  const userId =
-    typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+  const { userId } = useAuth();
 
   useEffect(() => {
     if (searchParams.get("success")) {
@@ -31,7 +30,7 @@ const Summary = () => {
   }, [searchParams, removeAll]);
 
   const totalPrice = items.reduce((total, item) => {
-    return total + Number(item.price);
+    return total + Number(item.price) * (item.quantity || 1);
   }, 0);
 
   const onCheckout = async () => {

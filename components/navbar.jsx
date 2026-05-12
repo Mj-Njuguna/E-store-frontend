@@ -2,10 +2,8 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { SignInButton, UserButton } from "@clerk/nextjs";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import debounce from "lodash/debounce";
-import axios from "axios";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import PropTypes from "prop-types";
 
 import MainNav from "@/components/ui/navbar/main-nav";
@@ -13,93 +11,126 @@ import Container from "@/components/ui/container";
 import NavbarActions from "@/components/navbar-actions";
 import SearchSuggestions from "@/components/ui/search-suggestions";
 
+const DEBOUNCE_MS = 400;
+const MIN_QUERY_LENGTH = 2;
+
 const Navbar = ({ userId, categories }) => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(
-    searchParams.get("query") || ""
-  );
+  const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const searchRef = useRef(null);
+  // Fix Bug 4: stable debounce timer ref — never recreated
+  const debounceTimer = useRef(null);
+
+  // Fix Bug 6: removed useSearchParams — read from URL directly on mount only
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("query");
+    if (q) setSearchQuery(q);
+  }, []);
 
   // Close suggestions when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target)
-      ) {
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
         setIsFocused(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Initialize search query from URL
-  useEffect(() => {
-    const query = searchParams.get("query");
-    if (query) {
-      setSearchQuery(query);
-    }
-  }, [searchParams]);
-
-  // Debounced search function for suggestions
-  const debouncedFetchSuggestions = useCallback(
-    debounce(async (query) => {
-      if (!query.trim()) {
-        setSuggestions([]);
-        return;
+  // Fix Bug 4: plain ref-based debounce, no useCallback/debounce library needed
+  const fetchSuggestions = async (query) => {
+    setIsLoading(true);
+    try {
+      // Try dedicated endpoint first, fall back to /products
+      let products = [];
+      const searchRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/products/search?query=${encodeURIComponent(query)}`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (searchRes.ok) {
+        const data = await searchRes.json();
+        if (Array.isArray(data)) products = data;
       }
 
-      setIsLoading(true);
-      try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/products/search?query=${encodeURIComponent(query)}`,
-          {
-            timeout: 5000
+      // Fallback: score against all products locally
+      if (products.length === 0) {
+        const allRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`);
+        if (allRes.ok) {
+          const all = await allRes.json();
+          if (Array.isArray(all)) {
+            const kw = query.toLowerCase();
+            products = all
+              .filter((p) =>
+                p.name?.toLowerCase().includes(kw) ||
+                p.category?.name?.toLowerCase().includes(kw)
+              )
+              .slice(0, 8); // cap suggestions at 8
           }
-        );
-        setSuggestions(response.data);
-      } catch (error) {
-        console.error("Error fetching suggestions:", error);
-        setSuggestions([]);
-      } finally {
-        setIsLoading(false);
+        }
       }
-    }, 500), // Increased debounce time for better performance
-    []
-  );
+
+      setSuggestions(products.slice(0, 8));
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
-    if (query.length >= 2) { // Only search if query is 2+ characters
-      debouncedFetchSuggestions(query);
-    } else {
+
+    // Fix Bug 4: clear previous timer, set new one
+    clearTimeout(debounceTimer.current);
+
+    if (query.length < MIN_QUERY_LENGTH) {
       setSuggestions([]);
+      return;
     }
+
+    debounceTimer.current = setTimeout(() => fetchSuggestions(query), DEBOUNCE_MS);
+  };
+
+  const submitSearch = (query) => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    // Fix Bug 3: clear suggestions AND focused state before navigating
+    setSuggestions([]);
+    setIsFocused(false);
+    clearTimeout(debounceTimer.current);
+    router.push(`/search?query=${encodeURIComponent(trimmed)}`);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (searchQuery.trim()) {
-        router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
-        setIsFocused(false);
-      }
+      submitSearch(searchQuery);
+    }
+    // Fix Bug 1: Escape closes the dropdown
+    if (e.key === "Escape") {
+      setIsFocused(false);
+      setSuggestions([]);
     }
   };
 
-  const onSearch = (event) => {
-    event.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
-      setIsFocused(false);
-    }
+  const onSearch = (e) => {
+    e.preventDefault();
+    submitSearch(searchQuery);
+  };
+
+  // Fix Bug 2: onSelect receives both name (to sync input) and id (to navigate)
+  const handleSuggestionSelect = (name, productId) => {
+    setSearchQuery(name);
+    setSuggestions([]);
+    setIsFocused(false);
+    clearTimeout(debounceTimer.current);
+    router.push(`/product/${productId}`);
   };
 
   return (
@@ -141,11 +172,7 @@ const Navbar = ({ userId, categories }) => {
                 suggestions={suggestions}
                 isVisible={isFocused}
                 searchQuery={searchQuery}
-                onSelect={(query) => {
-                  setSearchQuery(query);
-                  router.push(`/search?query=${encodeURIComponent(query)}`);
-                  setIsFocused(false);
-                }}
+                onSelect={handleSuggestionSelect}
               />
             </div>
             <NavbarActions />
@@ -172,7 +199,7 @@ const Navbar = ({ userId, categories }) => {
 
 Navbar.propTypes = {
   userId: PropTypes.string,
-  categories: PropTypes.array.isRequired
+  categories: PropTypes.array.isRequired,
 };
 
 export default Navbar;

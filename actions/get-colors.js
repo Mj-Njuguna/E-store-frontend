@@ -5,9 +5,20 @@
 const URL=`${process.env.NEXT_PUBLIC_API_URL}/colors`;
 
 const getColors = async () => {
-  const res = await fetch(URL);
+  try {
+    const res = await fetch(URL);
 
-  return res.json();
+    if (!res.ok) {
+      console.error(`Failed to fetch colors: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching colors:', error);
+    return [];
+  }
 };
 
 export default getColors;

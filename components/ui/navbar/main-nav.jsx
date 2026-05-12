@@ -1,20 +1,18 @@
+"use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Category } from "@/types";
-import { Menu } from "lucide-react";
 import { useState } from "react";
+import { Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import PropTypes from "prop-types";
 
-interface MainNavProps {
-  data: Category[];
-}
+import { cn } from "@/lib/utils";
 
-const MainNav: React.FC<MainNavProps> = ({ data }) => {
+const MainNav = ({ data }) => {
   const pathname = usePathname();
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  
-  // Split categories into main display and overflow
+
   const mainCategories = data.slice(0, 5);
   const overflowCategories = data.slice(5);
 
@@ -38,7 +36,7 @@ const MainNav: React.FC<MainNavProps> = ({ data }) => {
           {route.label}
         </Link>
       ))}
-      
+
       {overflowCategories.length > 0 && (
         <div className="relative">
           <button
@@ -48,7 +46,7 @@ const MainNav: React.FC<MainNavProps> = ({ data }) => {
             <Menu size={20} />
             <span>More</span>
           </button>
-          
+
           <AnimatePresence>
             {isMoreMenuOpen && (
               <motion.div
@@ -77,6 +75,10 @@ const MainNav: React.FC<MainNavProps> = ({ data }) => {
       )}
     </nav>
   );
+};
+
+MainNav.propTypes = {
+  data: PropTypes.array.isRequired,
 };
 
 export default MainNav;

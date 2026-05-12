@@ -8,7 +8,7 @@ import Container from '@/components/ui/container';
 /**
  * Product detail page
  */
-export const revalidate = 0;
+export const revalidate = 30;
 
 /**
  * Product page component

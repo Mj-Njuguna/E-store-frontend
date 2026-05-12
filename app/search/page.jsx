@@ -2,91 +2,97 @@ import Container from "@/components/ui/container";
 import NoResults from "@/components/ui/no-results";
 import ProductCard from "@/components/ui/product-card";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 /**
- * Fetch and filter products based on search query
- * @param {string} query - Search query string
- * @returns {Promise<Array>} Filtered products array
+ * Score a product against a set of keywords.
+ * Higher score = better match. Score of 0 = no match.
  */
-async function getProducts(query) {
+function scoreProduct(product, keywords) {
+  let score = 0;
+  const name = product.name?.toLowerCase() ?? "";
+  const category = product.category?.name?.toLowerCase() ?? "";
+
+  for (const kw of keywords) {
+    if (name === kw) score += 10;           // exact name match
+    else if (name.startsWith(kw)) score += 7; // name starts with keyword
+    else if (name.includes(kw)) score += 5;   // name contains keyword
+
+    if (category === kw) score += 8;          // exact category match
+    else if (category.includes(kw)) score += 3; // category contains keyword
+  }
+
+  return score;
+}
+
+/**
+ * Try the dedicated search endpoint first.
+ * If it doesn't exist (404) or fails, fall back to fetching all products
+ * and scoring them client-side.
+ */
+async function searchProducts(query) {
+  if (!query?.trim()) return [];
+
+  const keywords = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+  // --- Attempt 1: dedicated search endpoint ---
   try {
-    // Split the search query into keywords
-    const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const res = await fetch(
+      `${API_URL}/products/search?query=${encodeURIComponent(query)}`,
+      { cache: "no-store" }
+    );
 
-    // Fetch all products
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`);
-    const allProducts = await response.json();
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch {
+    // endpoint doesn't exist or network error — fall through to fallback
+  }
 
-    // Filter and score products based on keyword matches
-    const scoredProducts = allProducts.map((product) => {
-      let score = 0;
-      const searchableText =
-        `${product.name} ${product.category?.name} ${product.description}`.toLowerCase();
+  // --- Attempt 2: fetch all products and score locally ---
+  try {
+    const res = await fetch(`${API_URL}/products`, { cache: "no-store" });
+    if (!res.ok) return [];
 
-      // Score each keyword match
-      keywords.forEach((keyword) => {
-        // Exact matches get higher scores
-        if (product.name.toLowerCase() === keyword) score += 10;
-        if (product.category?.name.toLowerCase() === keyword) score += 8;
+    const allProducts = await res.json();
+    if (!Array.isArray(allProducts)) return [];
 
-        // Partial matches in name get medium scores
-        if (product.name.toLowerCase().includes(keyword)) score += 5;
-
-        // Partial matches in category or description get lower scores
-        if (searchableText.includes(keyword)) score += 2;
-      });
-
-      return { product, score };
-    });
-
-    // Filter out products with no matches and sort by score
-    const filteredProducts = scoredProducts
-      .filter((item) => item.score > 0)
+    return allProducts
+      .map((product) => ({ product, score: scoreProduct(product, keywords) }))
+      .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
-      .map((item) => item.product);
-
-    return filteredProducts;
-  } catch (error) {
-    console.error("Error fetching products:", error);
+      .map(({ product }) => product);
+  } catch {
     return [];
   }
 }
 
-/**
- * Search page component
- * @param {Object} props Component props
- * @param {Object} props.searchParams URL search parameters
- * @param {string} props.searchParams.query Search query string
- */
 export default async function SearchPage({ searchParams }) {
-  const products = await getProducts(searchParams.query || "");
+  const query = searchParams.query || "";
+  const products = await searchProducts(query);
 
   return (
     <div className="bg-white">
       <Container>
-        <div className="px-4 sm:px-6 lg:px-8 pb-24">
-          <div className="lg:grid lg:grid-cols-5 lg:gap-x-8">
-            <div className="mt-6 lg:col-span-5">
-              <div className="lg:col-span-5">
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
-                  Search Results for &quot;{query}&quot;
-                </h2>
-                {products.length === 0 ? (
-                  <NoResults />
-                ) : (
-                  <>
-                    <p className="text-gray-500 mb-4">
-                      {products.length} results found
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {products.map((item) => (
-                        <ProductCard key={item.id} data={item} />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+        <div className="px-4 sm:px-6 lg:px-8 pb-24 pt-6">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-1">
+            {query ? `Results for "${query}"` : "All Products"}
+          </h2>
+          {query && (
+            <p className="text-gray-500 mb-6">
+              {products.length} {products.length === 1 ? "result" : "results"} found
+            </p>
+          )}
+          {products.length === 0 ? (
+            <NoResults />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {products.map((item) => (
+                <ProductCard key={item.id} data={item} />
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </Container>
     </div>

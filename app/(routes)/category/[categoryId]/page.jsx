@@ -14,7 +14,7 @@ import MobileFilters from './components/mobile-filters';
 /**
  * Category page for displaying products by category
  */
-export const revalidate = 0;
+export const revalidate = 60;
 
 /**
  * Category page component
