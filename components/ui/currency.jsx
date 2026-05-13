@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 
-const formatter = new Intl.NumberFormat('en-US', {
+const formatter = new Intl.NumberFormat('en-KE', {
   style: 'currency',
-  currency: 'USD',
+  currency: 'KES',
 });
 
 const Currency = ({ value = 0 }) => {

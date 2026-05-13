@@ -3,8 +3,51 @@
 import Image from "next/image";
 import PropTypes from "prop-types";
 
+/**
+ * Splits `text` into segments, wrapping parts that match any keyword in a
+ * <mark> so the user can see exactly why a suggestion appeared.
+ *
+ * e.g. text="Wool Cashmere Jacket", query="wool jack"
+ *   → ["", <mark>Wool</mark>, " Cashmere ", <mark>Jack</mark>, "et"]
+ */
+function HighlightedText({ text, query }) {
+  if (!query || !text) return <span>{text}</span>;
+
+  const keywords = query
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    // longest keywords first so overlapping matches don't get swallowed
+    .sort((a, b) => b.length - a.length);
+
+  // Build a regex that matches any keyword (case-insensitive)
+  const pattern = keywords.map((kw) => kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const regex = new RegExp(`(${pattern})`, "gi");
+
+  const parts = text.split(regex);
+
+  return (
+    <span>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-100 text-gray-900 rounded-sm px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+}
+
+HighlightedText.propTypes = {
+  text: PropTypes.string.isRequired,
+  query: PropTypes.string.isRequired,
+};
+
 const SearchSuggestions = ({ suggestions, isVisible, onSelect, searchQuery }) => {
-  // Only show when focused AND user has typed something AND there's something to show
   if (!isVisible || searchQuery.length < 2) return null;
 
   return (
@@ -14,39 +57,35 @@ const SearchSuggestions = ({ suggestions, isVisible, onSelect, searchQuery }) =>
           {suggestions.map((product) => (
             <button
               key={product.id}
-              className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
-              // Fix Bug 2: call onSelect so the navbar syncs the input value
+              className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors"
               onMouseDown={(e) => {
-                // onMouseDown + preventDefault prevents the input from losing focus
-                // before the click registers, which would close the dropdown first
                 e.preventDefault();
                 onSelect(product.name, product.id);
               }}
             >
-              <div className="w-10 h-10 relative flex-shrink-0">
+              <div className="w-10 h-10 relative flex-shrink-0 rounded overflow-hidden bg-gray-100">
                 {product.images?.[0]?.url ? (
                   <Image
                     src={product.images[0].url}
                     alt={product.name}
                     fill
                     sizes="40px"
-                    className="object-cover rounded"
+                    className="object-cover"
                   />
-                ) : (
-                  <div className="w-full h-full bg-gray-100 rounded" />
-                )}
+                ) : null}
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">{product.name}</p>
-                <p className="text-sm text-gray-500">{product.category?.name}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  <HighlightedText text={product.name} query={searchQuery} />
+                </p>
+                <p className="text-xs text-gray-400 truncate">{product.category?.name}</p>
               </div>
             </button>
           ))}
         </div>
       ) : (
-        <div className="p-4 text-center text-gray-500">
-          <p>No products found for &quot;{searchQuery}&quot;</p>
-          <p className="text-sm mt-1">Try different keywords</p>
+        <div className="p-4 text-center text-gray-500 text-sm">
+          No results for &quot;{searchQuery}&quot;
         </div>
       )}
     </div>
