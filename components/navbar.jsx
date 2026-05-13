@@ -42,34 +42,44 @@ const Navbar = ({ userId, categories }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fix Bug 4: plain ref-based debounce, no useCallback/debounce library needed
   const fetchSuggestions = async (query) => {
     setIsLoading(true);
     try {
-      // Try dedicated endpoint first, fall back to /products
       let products = [];
-      const searchRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/products/search?query=${encodeURIComponent(query)}`,
-        { signal: AbortSignal.timeout(4000) }
-      );
-      if (searchRes.ok) {
-        const data = await searchRes.json();
-        if (Array.isArray(data)) products = data;
+
+      // Try dedicated search endpoint first
+      try {
+        const searchRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/products/search?query=${encodeURIComponent(query)}`,
+          { signal: AbortSignal.timeout(4000) }
+        );
+        if (searchRes.ok) {
+          const data = await searchRes.json();
+          if (Array.isArray(data) && data.length > 0) products = data;
+        }
+      } catch {
+        // endpoint doesn't exist, fall through
       }
 
-      // Fallback: score against all products locally
+      // Fallback: fetch all products and match by splitting query into keywords
       if (products.length === 0) {
         const allRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`);
         if (allRes.ok) {
           const all = await allRes.json();
           if (Array.isArray(all)) {
-            const kw = query.toLowerCase();
+            // Split query into individual keywords so "wool jack" matches "Wool Cashmere Jacket"
+            const keywords = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+
             products = all
-              .filter((p) =>
-                p.name?.toLowerCase().includes(kw) ||
-                p.category?.name?.toLowerCase().includes(kw)
-              )
-              .slice(0, 8); // cap suggestions at 8
+              .filter((p) => {
+                const name = p.name?.toLowerCase() ?? "";
+                const category = p.category?.name?.toLowerCase() ?? "";
+                // Every keyword must appear somewhere in name or category
+                return keywords.every(
+                  (kw) => name.includes(kw) || category.includes(kw)
+                );
+              })
+              .slice(0, 8);
           }
         }
       }
